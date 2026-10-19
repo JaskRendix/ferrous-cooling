@@ -1,0 +1,43 @@
+[fluid]
+name = "ammonia"
+
+[wick]
+pore_radius = 1e-6
+
+[pressure_budget]
+groove_loss = 500.0
+vapor_loss = 2000.0
+condenser_loss = 1000.0
+liquid_loss = 8000.0
+wick_loss = 300.0
+gravity_loss = 500.0
+
+[cold_case]
+rho_liquid = 600.0
+rho_vapor = 5.0
+loop_volume = 1.0e-4
+cc_volume = 2.0e-5
+liquid_fraction = 0.8
+
+[hot_case]
+liquid_density = 550.0
+vapor_density = 8.0
+liquid_line_volume = 1.0e-5
+primary_wick_volume = 2.0e-6
+secondary_wick_volume = 2.0e-6
+groove_volume = 1.0e-6
+vapor_line_volume = 5.0e-6
+condenser_volume = 1.5e-5
+compensation_chamber_volume = 1.0e-5
+vapor_fraction = 0.3
+
+[thermal]
+mass_flow_rate = 0.001
+specific_heat = 4700.0
+compensation_temperature = 300.0
+inlet_temperature = 295.0
+conductance = 0.25
+evaporator_temperature = 310.0
+
+[saturation]
+temperature = 300.0
