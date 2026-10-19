@@ -127,8 +127,26 @@ struct HotInventoryArgs {
 
 #[derive(Args)]
 struct SaturationSlopeArgs {
+    #[arg(long, default_value = "ammonia")]
+    fluid: String,
+
     #[arg(long)]
     temperature: f64,
+}
+
+fn parse_fluid(name: &str) -> Option<Fluid> {
+    match name.to_lowercase().as_str() {
+        "ammonia" => Some(Fluid::ammonia()),
+        "water" => Some(Fluid::water()),
+        "methanol" => Some(Fluid::methanol()),
+        "acetone" => Some(Fluid::acetone()),
+        "propane" => Some(Fluid::propane()),
+        "propylene" => Some(Fluid::propylene()),
+        "r134a" => Some(Fluid::r134a()),
+        "r245fa" => Some(Fluid::r245fa()),
+        "co2" => Some(Fluid::co2()),
+        _ => None,
+    }
 }
 
 #[derive(Args)]
@@ -235,7 +253,10 @@ fn main() {
         }
 
         Commands::SaturationSlope(args) => {
-            let fluid = Fluid::ammonia();
+            let fluid = parse_fluid(&args.fluid).unwrap_or_else(|| {
+                eprintln!("Unsupported fluid: {}", args.fluid);
+                std::process::exit(1);
+            });
 
             let slope = fluid.saturation_pressure_slope(args.temperature);
 

@@ -30,9 +30,20 @@ The operating condition of the system is determined by the balance between:
 
 ### Fluids
 
-Currently implemented:
+Currently implemented working fluids:
 
-- Ammonia working-fluid model
+- Ammonia
+- Water
+- Methanol
+- Acetone
+- Propane
+- Propylene
+- R134a
+- R245fa
+- CO2
+
+Available fluid properties:
+
 - Surface tension
 - Liquid density
 - Vapor density
@@ -144,6 +155,7 @@ ferrous-cooling inventory cold \
 
 # Saturation-pressure slope
 ferrous-cooling saturation-slope \
+  --fluid water \
   --temperature 300
 ```
 
