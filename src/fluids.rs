@@ -1,10 +1,13 @@
-/// Approximate surface tension of ammonia at room temperature [N/m].
-pub const AMMONIA_SURFACE_TENSION: f64 = 0.023;
-
 /// Thermophysical properties of a working fluid.
 ///
 /// Units:
-/// - surface_tension: N/m
+/// - surface_tension [N/m]
+/// - latent_heat [J/kg]
+/// - liquid_density [kg/m³]
+/// - vapor_density [kg/m³]
+/// - liquid_specific_heat [J/(kg·K)]
+/// - liquid_viscosity [Pa·s]
+/// - thermal_conductivity [W/(m·K)]
 #[derive(Debug, Clone, Copy)]
 pub struct Fluid {
     pub name: &'static str,
@@ -13,9 +16,38 @@ pub struct Fluid {
     pub liquid_density: f64,
     pub vapor_density: f64,
     pub liquid_specific_heat: f64,
+    pub liquid_viscosity: f64,
+    pub thermal_conductivity: f64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FluidKind {
+    Ammonia,
+    Water,
+    Methanol,
+    Acetone,
+    Propane,
+    Propylene,
+    R134a,
+    R245fa,
+    Co2,
 }
 
 impl Fluid {
+    pub fn from_kind(kind: FluidKind) -> Self {
+        match kind {
+            FluidKind::Ammonia => Self::ammonia(),
+            FluidKind::Water => Self::water(),
+            FluidKind::Methanol => Self::methanol(),
+            FluidKind::Acetone => Self::acetone(),
+            FluidKind::Propane => Self::propane(),
+            FluidKind::Propylene => Self::propylene(),
+            FluidKind::R134a => Self::r134a(),
+            FluidKind::R245fa => Self::r245fa(),
+            FluidKind::Co2 => Self::co2(),
+        }
+    }
+
     /// Creates an ammonia working fluid.
     ///
     /// The surface tension value is a representative
@@ -34,11 +66,13 @@ impl Fluid {
     pub fn ammonia() -> Self {
         Self {
             name: "Ammonia",
-            surface_tension: AMMONIA_SURFACE_TENSION,
+            surface_tension: 0.023,
             latent_heat: 1_370_000.0,
             liquid_density: 682.0,
             vapor_density: 7.9,
             liquid_specific_heat: 4700.0,
+            liquid_viscosity: 2.5e-4,
+            thermal_conductivity: 0.52,
         }
     }
 
@@ -50,6 +84,8 @@ impl Fluid {
             liquid_density: 997.0,
             vapor_density: 0.026,
             liquid_specific_heat: 4184.0,
+            liquid_viscosity: 8.9e-4,
+            thermal_conductivity: 0.60,
         }
     }
 
@@ -61,6 +97,8 @@ impl Fluid {
             liquid_density: 792.0,
             vapor_density: 1.17,
             liquid_specific_heat: 2510.0,
+            liquid_viscosity: 5.4e-4,
+            thermal_conductivity: 0.20,
         }
     }
 
@@ -72,6 +110,8 @@ impl Fluid {
             liquid_density: 784.0,
             vapor_density: 2.4,
             liquid_specific_heat: 2160.0,
+            liquid_viscosity: 3.1e-4,
+            thermal_conductivity: 0.16,
         }
     }
 
@@ -83,6 +123,8 @@ impl Fluid {
             liquid_density: 493.0,
             vapor_density: 1.9,
             liquid_specific_heat: 2500.0,
+            liquid_viscosity: 1.2e-4,
+            thermal_conductivity: 0.11,
         }
     }
 
@@ -94,6 +136,8 @@ impl Fluid {
             liquid_density: 520.0,
             vapor_density: 2.0,
             liquid_specific_heat: 2400.0,
+            liquid_viscosity: 1.1e-4,
+            thermal_conductivity: 0.10,
         }
     }
 
@@ -105,6 +149,8 @@ impl Fluid {
             liquid_density: 1207.0,
             vapor_density: 5.25,
             liquid_specific_heat: 1420.0,
+            liquid_viscosity: 2.0e-4,
+            thermal_conductivity: 0.08,
         }
     }
 
@@ -116,6 +162,8 @@ impl Fluid {
             liquid_density: 1330.0,
             vapor_density: 8.0,
             liquid_specific_heat: 1320.0,
+            liquid_viscosity: 4.0e-4,
+            thermal_conductivity: 0.09,
         }
     }
 
@@ -127,6 +175,8 @@ impl Fluid {
             liquid_density: 770.0,
             vapor_density: 65.0,
             liquid_specific_heat: 2200.0,
+            liquid_viscosity: 7.0e-5,
+            thermal_conductivity: 0.10,
         }
     }
 
@@ -155,6 +205,10 @@ impl Fluid {
         let delta_specific_volume = vapor_specific_volume - liquid_specific_volume;
 
         self.latent_heat / (temperature * delta_specific_volume)
+    }
+
+    pub fn reynolds_number(&self, velocity: f64, hydraulic_diameter: f64) -> f64 {
+        self.liquid_density * velocity * hydraulic_diameter / self.liquid_viscosity
     }
 }
 
@@ -236,11 +290,13 @@ mod tests {
         assert!(fluid.liquid_density > fluid.vapor_density);
 
         assert!(fluid.liquid_specific_heat > 0.0);
-
         let slope = fluid.saturation_pressure_slope(300.0);
 
         assert!(slope > 0.0);
         assert!(slope.is_finite());
+
+        assert!(fluid.liquid_viscosity > 0.0);
+        assert!(fluid.thermal_conductivity > 0.0);
     }
 
     #[test]
@@ -338,5 +394,34 @@ mod tests {
                 fluid.name
             );
         }
+    }
+
+    #[test]
+    fn reynolds_number_is_positive() {
+        let fluid = Fluid::ammonia();
+
+        let re = fluid.reynolds_number(1.0, 0.002);
+
+        assert!(re > 0.0);
+    }
+
+    #[test]
+    fn reynolds_number_increases_with_velocity() {
+        let fluid = Fluid::ammonia();
+
+        let low = fluid.reynolds_number(1.0, 0.002);
+
+        let high = fluid.reynolds_number(2.0, 0.002);
+
+        assert!(high > low);
+    }
+
+    #[test]
+    fn ammonia_transport_properties_are_positive() {
+        let fluid = Fluid::ammonia();
+
+        assert!(fluid.liquid_viscosity > 0.0);
+
+        assert!(fluid.thermal_conductivity > 0.0);
     }
 }
