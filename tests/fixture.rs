@@ -184,7 +184,7 @@ fn fixture_runs_complete_analysis() {
     //
     // Thermal calculations
     //
-    let cc_heat = compensation_chamber_heat(
+    let cc_heat = subcooling_heat(
         fixture.thermal.mass_flow_rate,
         fixture.thermal.specific_heat,
         fixture.thermal.compensation_temperature,

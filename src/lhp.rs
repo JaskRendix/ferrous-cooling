@@ -1,4 +1,5 @@
 use crate::fluids::Fluid;
+use crate::wick::Wick;
 
 /// Parameters for the cold-case fluid inventory calculation.
 #[derive(Debug, Clone, Copy)]
@@ -44,6 +45,8 @@ pub struct ColdCase {
 /// assert!(inventory > 0.0);
 /// ```
 pub fn cold_case_inventory(cold_case: ColdCase) -> f64 {
+    debug_assert!((0.0..=1.0).contains(&cold_case.liquid_fraction));
+
     cold_case.rho_liquid * (cold_case.loop_volume + cold_case.liquid_fraction * cold_case.cc_volume)
         + cold_case.rho_vapor * (1.0 - cold_case.liquid_fraction) * cold_case.cc_volume
 }
@@ -111,6 +114,34 @@ pub struct Performance {
     pub margin_percent: f64,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct CompensationChamber {
+    pub volume: f64,
+    pub temperature: f64,
+    pub heater_power: f64,
+    pub liquid_fraction: f64,
+}
+
+impl CompensationChamber {
+    pub fn is_valid(&self) -> bool {
+        (0.0..=1.0).contains(&self.liquid_fraction)
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct LoopHeatPipe {
+    pub fluid: Fluid,
+    pub wick: Wick,
+}
+
+impl LoopHeatPipe {
+    pub fn capillary_limit(&self, pressure_budget: PressureBudget) -> Performance {
+        let capillary_pressure = self.wick.max_capillary_pressure(self.fluid.surface_tension);
+
+        evaluate(capillary_pressure, pressure_budget)
+    }
+}
+
 /// Evaluates whether the available capillary pressure is
 /// sufficient to overcome all loop pressure losses.
 ///
@@ -155,6 +186,8 @@ pub struct Performance {
 /// assert!(result.margin_percent > 0.0);
 /// ```
 pub fn evaluate(capillary_pressure: f64, budget: PressureBudget) -> Performance {
+    debug_assert!(capillary_pressure > 0.0);
+
     let total_loss = total_pressure_loss(budget);
 
     let margin = (capillary_pressure - total_loss) / capillary_pressure * 100.0;
@@ -209,9 +242,9 @@ pub fn evaporation_heat(fluid: &Fluid, mass_flow_rate: f64) -> f64 {
 /// # Example
 ///
 /// ```rust
-/// use ferrous_cooling::lhp::compensation_chamber_heat;
+/// use ferrous_cooling::lhp::subcooling_heat;
 ///
-/// let heat = compensation_chamber_heat(
+/// let heat = subcooling_heat(
 ///     0.001,
 ///     4700.0,
 ///     300.0,
@@ -220,13 +253,25 @@ pub fn evaporation_heat(fluid: &Fluid, mass_flow_rate: f64) -> f64 {
 ///
 /// assert!(heat > 0.0);
 /// ```
-pub fn compensation_chamber_heat(
+pub fn subcooling_heat(
     mass_flow_rate: f64,
     specific_heat: f64,
     compensation_temperature: f64,
     inlet_temperature: f64,
 ) -> f64 {
+    debug_assert!(mass_flow_rate >= 0.0);
+    debug_assert!(specific_heat > 0.0);
+
     mass_flow_rate * specific_heat * (compensation_temperature - inlet_temperature)
+}
+
+pub fn compensation_chamber_balance(
+    heat_leak: f64,
+    subcooling_heat: f64,
+    heater_power: f64,
+    ambient_heat: f64,
+) -> f64 {
+    heat_leak - subcooling_heat + heater_power + ambient_heat
 }
 
 /// Computes the liquid temperature entering the
@@ -254,6 +299,9 @@ pub fn inlet_temperature(
     mass_flow_rate: f64,
     specific_heat: f64,
 ) -> f64 {
+    debug_assert!(mass_flow_rate > 0.0);
+    debug_assert!(specific_heat > 0.0);
+
     subcooler_exit_temperature + liquid_line_heat_gain / (mass_flow_rate * specific_heat)
 }
 
@@ -400,6 +448,8 @@ pub struct HotCase {
 /// assert!(inventory > 0.0);
 /// ```
 pub fn hot_case_inventory(hot_case: HotCase) -> f64 {
+    debug_assert!((0.0..=1.0).contains(&hot_case.vapor_fraction));
+
     hot_case.liquid_density
         * (hot_case.liquid_line_volume
             + hot_case.primary_wick_volume
@@ -415,7 +465,11 @@ pub fn hot_case_inventory(hot_case: HotCase) -> f64 {
 /// Computes the saturation-temperature difference
 /// between the evaporator and compensation chamber.
 ///
-/// Rearranged Equation (5) from Ku (1999):
+/// Based on the thermodynamic constraint:
+///
+/// ΔP = (dP/dT) ΔT
+///
+/// Therefore:
 ///
 /// ΔT = (ΔPtotal - ΔPwick) / (dP/dT)
 ///
@@ -437,6 +491,8 @@ pub fn saturation_temperature_difference(
     wick_pressure_drop: f64,
     saturation_pressure_slope: f64,
 ) -> f64 {
+    debug_assert!(saturation_pressure_slope > 0.0);
+
     (total_pressure_drop - wick_pressure_drop) / saturation_pressure_slope
 }
 
@@ -535,7 +591,7 @@ mod tests {
 
     #[test]
     fn computes_compensation_chamber_heat() {
-        let heat = compensation_chamber_heat(0.001, 4700.0, 300.0, 295.0);
+        let heat = subcooling_heat(0.001, 4700.0, 300.0, 295.0);
 
         assert_eq!(heat, 23.5);
     }
@@ -559,5 +615,39 @@ mod tests {
         let inv = maximum_inventory(600.0, 1.0e-4, 2.0e-5);
 
         assert!((inv - 0.072).abs() < 1e-12);
+    }
+
+    #[test]
+    fn computes_compensation_chamber_balance() {
+        let balance = compensation_chamber_balance(50.0, 40.0, 5.0, 3.0);
+
+        assert_eq!(balance, 18.0);
+    }
+
+    #[test]
+    fn loop_can_use_fluid_kind() {
+        let fluid = Fluid::from_kind(crate::fluids::FluidKind::Ammonia);
+
+        assert_eq!(fluid.name, "Ammonia");
+    }
+
+    #[test]
+    fn loop_heat_pipe_evaluates_capillary_limit() {
+        let lhp = LoopHeatPipe {
+            fluid: Fluid::ammonia(),
+            wick: Wick::typical_ammonia_wick(),
+        };
+
+        let result = lhp.capillary_limit(PressureBudget {
+            groove_loss: 500.0,
+            vapor_loss: 500.0,
+            condenser_loss: 500.0,
+            liquid_loss: 500.0,
+            wick_loss: 500.0,
+            gravity_loss: 0.0,
+        });
+
+        assert!(result.total_loss > 0.0);
+        assert!(result.margin_percent.is_finite());
     }
 }

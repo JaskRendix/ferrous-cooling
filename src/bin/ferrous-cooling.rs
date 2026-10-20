@@ -1,9 +1,9 @@
 use clap::{Args, Parser, Subcommand};
 
 use ferrous_cooling::{
-    ColdCase, Fluid, HotCase, PressureBudget, Wick, cold_case_inventory, compensation_chamber_heat,
-    evaluate, heat_leak, hot_case_inventory, inlet_temperature, recommended_pressure_margin,
-    saturation_temperature_difference,
+    ColdCase, Fluid, FluidKind, HotCase, PressureBudget, Wick, cold_case_inventory, evaluate,
+    heat_leak, hot_case_inventory, inlet_temperature, recommended_pressure_margin,
+    saturation_temperature_difference, subcooling_heat,
 };
 
 #[derive(Parser)]
@@ -134,17 +134,17 @@ struct SaturationSlopeArgs {
     temperature: f64,
 }
 
-fn parse_fluid(name: &str) -> Option<Fluid> {
+fn parse_fluid_kind(name: &str) -> Option<FluidKind> {
     match name.to_lowercase().as_str() {
-        "ammonia" => Some(Fluid::ammonia()),
-        "water" => Some(Fluid::water()),
-        "methanol" => Some(Fluid::methanol()),
-        "acetone" => Some(Fluid::acetone()),
-        "propane" => Some(Fluid::propane()),
-        "propylene" => Some(Fluid::propylene()),
-        "r134a" => Some(Fluid::r134a()),
-        "r245fa" => Some(Fluid::r245fa()),
-        "co2" => Some(Fluid::co2()),
+        "ammonia" => Some(FluidKind::Ammonia),
+        "water" => Some(FluidKind::Water),
+        "methanol" => Some(FluidKind::Methanol),
+        "acetone" => Some(FluidKind::Acetone),
+        "propane" => Some(FluidKind::Propane),
+        "propylene" => Some(FluidKind::Propylene),
+        "r134a" => Some(FluidKind::R134a),
+        "r245fa" => Some(FluidKind::R245fa),
+        "co2" => Some(FluidKind::Co2),
         _ => None,
     }
 }
@@ -254,10 +254,12 @@ fn main() {
         }
 
         Commands::SaturationSlope(args) => {
-            let fluid = parse_fluid(&args.fluid).unwrap_or_else(|| {
+            let kind = parse_fluid_kind(&args.fluid).unwrap_or_else(|| {
                 eprintln!("Unsupported fluid: {}", args.fluid);
                 std::process::exit(1);
             });
+
+            let fluid = Fluid::from_kind(kind);
 
             let slope = fluid.saturation_pressure_slope(args.temperature);
 
@@ -267,7 +269,7 @@ fn main() {
         }
 
         Commands::Thermal(args) => {
-            let cc_heat = compensation_chamber_heat(
+            let cc_heat = subcooling_heat(
                 args.mass_flow_rate,
                 args.specific_heat,
                 args.compensation_temperature,
