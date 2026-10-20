@@ -3,9 +3,9 @@ use ferrous_cooling::{fluids::Fluid, lhp::*, wick::Wick};
 fn main() {
     let ammonia = Fluid::ammonia();
 
-    let wick = Wick { pore_radius: 1e-6 };
+    let wick = Wick::typical_ammonia_wick();
 
-    let capillary = wick.max_capillary_pressure(ammonia.surface_tension, 0.0);
+    let capillary = wick.max_capillary_pressure(ammonia.surface_tension);
 
     let result = evaluate(
         capillary,

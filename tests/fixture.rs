@@ -22,6 +22,10 @@ struct FluidConfig {
 #[derive(Debug, Deserialize)]
 struct WickConfig {
     pore_radius: f64,
+    permeability: f64,
+    porosity: f64,
+    thermal_conductivity: f64,
+    thickness: f64,
 }
 
 #[derive(Debug, Deserialize)]
@@ -88,9 +92,13 @@ fn fixture_runs_complete_analysis() {
     //
     let wick = Wick {
         pore_radius: fixture.wick.pore_radius,
+        permeability: fixture.wick.permeability,
+        porosity: fixture.wick.porosity,
+        thermal_conductivity: fixture.wick.thermal_conductivity,
+        thickness: fixture.wick.thickness,
     };
 
-    let capillary = wick.max_capillary_pressure(fluid.surface_tension, 0.0);
+    let capillary = wick.max_capillary_pressure(fluid.surface_tension);
 
     assert!(capillary > 0.0);
 

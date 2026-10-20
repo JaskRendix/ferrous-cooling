@@ -189,6 +189,7 @@ fn main() {
         Commands::Capillary(args) => {
             let wick = Wick {
                 pore_radius: args.pore_radius,
+                ..Wick::typical_ammonia_wick()
             };
 
             let pressure = wick.capillary_pressure(args.surface_tension, args.contact_angle);

@@ -4,9 +4,9 @@ use ferrous_cooling::*;
 fn lhp_design_has_positive_margin() {
     let fluid = Fluid::ammonia();
 
-    let wick = Wick { pore_radius: 1e-6 };
+    let wick = Wick::typical_ammonia_wick();
 
-    let capillary = wick.max_capillary_pressure(fluid.surface_tension, 0.0);
+    let capillary = wick.max_capillary_pressure(fluid.surface_tension);
 
     let result = evaluate(
         capillary,
@@ -27,9 +27,9 @@ fn lhp_design_has_positive_margin() {
 fn lhp_design_meets_recommended_margin() {
     let fluid = Fluid::ammonia();
 
-    let wick = Wick { pore_radius: 1e-6 };
+    let wick = Wick::typical_ammonia_wick();
 
-    let capillary = wick.max_capillary_pressure(fluid.surface_tension, 0.0);
+    let capillary = wick.max_capillary_pressure(fluid.surface_tension);
 
     let result = evaluate(
         capillary,

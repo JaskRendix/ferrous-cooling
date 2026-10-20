@@ -3,6 +3,10 @@ name = "ammonia"
 
 [wick]
 pore_radius = 1e-6
+permeability = 1e-13
+porosity = 0.6
+thermal_conductivity = 10.0
+thickness = 1e-3
 
 [pressure_budget]
 groove_loss = 500.0

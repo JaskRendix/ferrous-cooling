@@ -102,7 +102,6 @@ fn main() {
     let capillary =
         wick.max_capillary_pressure(
             ammonia.surface_tension,
-            0.0,
         );
 
     let result = evaluate(
@@ -238,16 +237,3 @@ This course material provides:
 - Startup behavior
 - Sizing guidance
 - System design considerations
-
-## Project Philosophy
-
-ferrous-cooling aims to become a focused Rust toolkit for thermal engineers, aerospace engineers, electronics-cooling researchers, and developers working on high-heat-flux systems.
-
-The emphasis is:
-
-- transparent equations
-- reproducible calculations
-- safe numerical implementations
-- zero-cost abstractions
-- ergonomic APIs
-- documented engineering assumptions
